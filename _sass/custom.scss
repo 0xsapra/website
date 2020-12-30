@@ -5,6 +5,11 @@
 pre.highlight {
   padding-left: 15px;
   overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.highlight pre{
+  white-space: pre-wrap;
 }
 
 .rouge-code {
