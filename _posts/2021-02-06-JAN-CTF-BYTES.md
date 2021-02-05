@@ -1,6 +1,3 @@
-# 2020-01-01 CTF's Bytes
-
-
 ## BASH/MISC
 
 1. **Bash Commands that can do Local read file**
