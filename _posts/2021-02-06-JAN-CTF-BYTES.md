@@ -4,7 +4,7 @@
     * arp -v -f '/etc/passwd'
     * tcpdump -c 1 -vvvvvv -V '/etc/passwd'
     * date '+%s' -f '/etc/passwd'
-    * od filename 
+    * od /etc/passwd 
 
 2. **Using htop/top command to seek into other process memory**
 
