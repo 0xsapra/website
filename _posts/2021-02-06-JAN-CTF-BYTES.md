@@ -78,5 +78,5 @@
 
 ## New Tools to improve Bug Bounty flow
 
-* HTTP Parameter finding : https://github.com/0xsapra/fuzzparam
-* Logic bugs finding : https://github.com/ngalongc/openapi_security_scanner
+* HTTP Parameter finding : [https://github.com/0xsapra/fuzzparam](https://github.com/0xsapra/fuzzparam)
+* Logic bugs finding : [https://github.com/ngalongc/openapi_security_scanner](https://github.com/ngalongc/openapi_security_scanner)
