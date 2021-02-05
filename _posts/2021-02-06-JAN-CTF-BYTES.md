@@ -14,6 +14,7 @@
 htop/top command can be used to strace a process sys calls. Steps:
 
 1. Run htop
+
 ```bash
 
 root@fc7e34d51219:/# htop
