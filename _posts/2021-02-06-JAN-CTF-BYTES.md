@@ -69,6 +69,7 @@
 
     * Lets say http://example.com has some CSP setting. 
     * Iframe also has a csp attribute which allows us to implement csp on the frame source site.
+    
     ```html
     <iframe csp="script:none" src='example.com'>
     ```
