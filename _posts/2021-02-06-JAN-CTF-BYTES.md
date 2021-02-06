@@ -35,6 +35,9 @@
 
     You might know the following trick:
     ```
+    root@cb7435cd5cf3:/ctf# ls /root
+    angr  bin ...
+
     root@cb7435cd5cf3:/ctf# ls /roo*
     angr  bin ...
     
