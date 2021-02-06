@@ -31,6 +31,19 @@
         ```
         If we use ^C it will exit normally without executing any, but using ^D will execute the commands. Now it's not only with perl, many command line utilities follow same.
 
+4. **Bash blacklist escape**
+
+    You might know the following trick:
+    ```
+    root@cb7435cd5cf3:/ctf# ls /roo*
+
+    root@cb7435cd5cf3:/ctf# ls /roo?
+    ```
+    The `*` or `?` is auto filling the input. Do you know we can also use other regex like
+    ```
+    ls /roo[a-z]
+    ```
+
 
 ## WEB
 
