@@ -34,7 +34,7 @@
 4. **Bash blacklist escape**
 
     You might know the following trick:
-    ```
+    ```bash
     root@cb7435cd5cf3:/ctf# ls /root
     angr  bin ...
 
@@ -44,10 +44,18 @@
     root@cb7435cd5cf3:/ctf# ls /roo?
     angr  bin ...
     ```
-    The `*` or `?` is auto filling the input. Do you know we can also use other regex like
-    ```
+    The `*` or `?` is auto filling the input. 
+
+    Do you know we can also use other regex like
+
+    ```bash
     root@cb7435cd5cf3:/ctf# ls /roo[a-z]
     angr  bin ...
+
+    root@cb7435cd5cf3:/ctf# ls /roo{x,t}
+    ls: cannot access '/roox': No such file or directory
+    /root:
+    angr  bin
     ```
 
 
