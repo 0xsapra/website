@@ -36,12 +36,15 @@
     You might know the following trick:
     ```
     root@cb7435cd5cf3:/ctf# ls /roo*
-
+    angr  bin ...
+    
     root@cb7435cd5cf3:/ctf# ls /roo?
+    angr  bin ...
     ```
     The `*` or `?` is auto filling the input. Do you know we can also use other regex like
     ```
-    ls /roo[a-z]
+    root@cb7435cd5cf3:/ctf# ls /roo[a-z]
+    angr  bin ...
     ```
 
 
