@@ -27,7 +27,6 @@ catch (Exception e) {
 
 here, `input.readObject()` is vulnerable to Insecure deserialization and our goal was to find exploit(Java Gadget chain), send it as POST body and achieve RCE. We can try to use gadget chains from ysoserial and other places but none worked, so we will have to create our own gadget chain now.
 
-
 ### Learning JAVA to find Gadget chain
 
 First step was to understand how JAVA deserialization works. I came accorss this nice talk from [blackhat](https://www.youtube.com/watch?v=wPbW6zQ52w8)
